@@ -1,6 +1,6 @@
-import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api, isDemo } from "./src/api";
@@ -27,16 +27,25 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   async function submit() {
-    setError(""); setLoading(true);
-    try { await signIn(identity, password); } catch (e) { setError(e instanceof Error ? e.message : "Unable to sign in."); } finally { setLoading(false); }
+    setError("");
+    setLoading(true);
+    try {
+      await signIn(identity, password);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to sign in.");
+    } finally {
+      setLoading(false);
+    }
   }
+
   return <SafeAreaView style={styles.loginPage}><KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.loginBody}>
     <View style={styles.brandMark}><Ionicons name="checkmark" size={28} color={colors.forestDark} /></View>
     <View><Text style={styles.eyebrow}>CLOCKWISE EMPLOYEE</Text><Text style={styles.loginTitle}>Attendance, without the fuss.</Text><Text style={styles.subtitle}>Sign in to record your day and review your attendance.</Text></View>
-    {isDemo ? <View style={styles.demo}><Ionicons name="flask-outline" size={18} color={colors.forest} /><Text style={styles.demoText}>Demo mode · use any employee ID and 8+ character password</Text></View> : null}
+    {isDemo ? <View style={styles.demo}><Ionicons name="flask-outline" size={18} color={colors.forest} /><Text style={styles.demoText}>Demo mode - use any employee ID and 8+ character password</Text></View> : null}
     <View style={{ gap: 15 }}><Field label="Employee ID or email" value={identity} onChangeText={setIdentity} autoCapitalize="none" placeholder="EMP-0021" /><Field label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Your password" onSubmitEditing={submit} />{error ? <Text style={styles.error}>{error}</Text> : null}<Button label="Sign in securely" loading={loading} onPress={submit} /></View>
-    <Text style={styles.fine}>Your session is encrypted and stored securely on this device.</Text>
+    <Text style={styles.fine}>Your website session is kept by the device. Sign out when using a shared phone.</Text>
   </KeyboardAvoidingView></SafeAreaView>;
 }
 
@@ -45,10 +54,22 @@ function EmployeeApp() {
   const [tab, setTab] = useState<Tab>("home");
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
-  const load = useCallback(async () => { if (!tokens) return; try { setError(""); setData(await api.dashboard(tokens.accessToken)); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load your account."); } }, [tokens]);
+
+  const load = useCallback(async () => {
+    if (!tokens) return;
+    try {
+      setError("");
+      setData(await api.dashboard());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load your account.");
+    }
+  }, [tokens]);
+
   useEffect(() => { void load(); }, [load]);
+
   if (!data && !error) return <LoadingScreen />;
   if (!data) return <SafeAreaView style={styles.center}><Text style={styles.error}>{error}</Text><Button label="Try again" onPress={load} /></SafeAreaView>;
+
   return <SafeAreaView style={styles.app}><View style={{ flex: 1 }}>
     {tab === "home" ? <Home data={data} reload={load} openHistory={() => setTab("history")} /> : null}
     {tab === "history" ? <History records={data.recentRecords} reload={load} /> : null}
@@ -69,30 +90,94 @@ function Header({ eyebrow, title, subtitle }: { eyebrow: string; title: string; 
 function Home({ data, reload, openHistory }: { data: Dashboard; reload(): Promise<void>; openHistory(): void }) {
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const action = data.allowedActions[0] ?? "CHECK_IN";
-  return <><Page refresh={reload}><Header eyebrow={new Intl.DateTimeFormat("en-PH", { weekday: "long", month: "long", day: "numeric" }).format(new Date()).toUpperCase()} title={`Good day, ${data.user.firstName}.`} subtitle="Here’s your attendance at a glance." />
-    <View style={styles.hero}><View style={{ gap: 8, flex: 1 }}><Text style={styles.heroEyebrow}>TODAY</Text><Text style={styles.heroTitle}>{data.todayStatus === "WORKING" ? "You’re checked in" : data.todayStatus === "COMPLETED" ? "Day completed" : "Ready when you are"}</Text><Text style={styles.heroText}>{data.user.shift.startTime}–{data.user.shift.endTime} · {data.user.location}</Text></View><View style={styles.weekBubble}><Text style={styles.weekNumber}>{data.weeklyCheckIns}</Text><Text style={styles.weekLabel}>THIS WEEK</Text></View></View>
+  const jobTitle = data.user.jobTitle ?? "Employee";
+
+  return <><Page refresh={reload}><Header eyebrow={new Intl.DateTimeFormat("en-PH", { weekday: "long", month: "long", day: "numeric" }).format(new Date()).toUpperCase()} title={`Good day, ${data.user.firstName}.`} subtitle="Here is your attendance at a glance." />
+    <View style={styles.hero}><View style={{ gap: 8, flex: 1 }}><Text style={styles.heroEyebrow}>TODAY</Text><Text style={styles.heroTitle}>{data.todayStatus === "WORKING" ? "You are checked in" : data.todayStatus === "COMPLETED" ? "Day completed" : "Ready when you are"}</Text><Text style={styles.heroText}>{data.user.shift.startTime}-{data.user.shift.endTime} - {data.user.location}</Text></View><View style={styles.weekBubble}><Text style={styles.weekNumber}>{data.weeklyCheckIns}</Text><Text style={styles.weekLabel}>THIS WEEK</Text></View></View>
     <Button label={action === "CHECK_IN" ? "Check in now" : "Check out now"} onPress={() => setAttendanceOpen(true)} />
-    <View style={styles.metrics}><Metric icon="time-outline" value={data.user.shift.name} label={`${data.user.shift.startTime}–${data.user.shift.endTime}`} /><Metric icon="business-outline" value={data.user.department} label={data.user.jobTitle} /></View>
+    <View style={styles.metrics}><Metric icon="time-outline" value={data.user.shift.name} label={`${data.user.shift.startTime}-${data.user.shift.endTime}`} /><Metric icon="business-outline" value={data.user.department} label={jobTitle} /></View>
     <SectionTitle title="Recent attendance" action="View all" onPress={openHistory} />{data.recentRecords.slice(0, 3).map((item) => <RecordRow key={item.id} item={item} />)}
   </Page>{attendanceOpen ? <AttendanceSheet action={action} onClose={() => setAttendanceOpen(false)} onRecorded={async () => { setAttendanceOpen(false); await reload(); }} /> : null}</>;
 }
 
 function AttendanceSheet({ action, onClose, onRecorded }: { action: AttendanceAction; onClose(): void; onRecorded(): Promise<void> }) {
-  const { tokens } = useAuth(); const [pin, setPin] = useState(""); const [location, setLocation] = useState("Location not captured"); const [coords, setCoords] = useState<{ latitude?: number; longitude?: number; accuracy?: number }>({}); const [locating, setLocating] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState("");
-  async function findLocation() { setLocating(true); try { const permission = await Location.requestForegroundPermissionsAsync(); if (!permission.granted) throw new Error("Location permission was not granted. You can still use PIN if policy allows."); const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }); setCoords({ latitude: point.coords.latitude, longitude: point.coords.longitude, accuracy: point.coords.accuracy ?? undefined }); if (isDemo) setLocation("Poblacion,Makati,Philippines"); else { const places = await Location.reverseGeocodeAsync(point.coords); const p = places[0]; setLocation([p?.district ?? p?.subregion, p?.city, p?.country].filter(Boolean).join(",") || "Current area"); } } catch (e) { setError(e instanceof Error ? e.message : "Location is unavailable."); } finally { setLocating(false); } }
-  async function submit() { if (!tokens) return; setError(""); setLoading(true); try { await api.recordAttendance(tokens.accessToken, { action, pin, locationLabel: location, ...coords }); await onRecorded(); Alert.alert("Attendance recorded", action === "CHECK_IN" ? "You’re checked in." : "You’re checked out."); } catch (e) { setError(e instanceof Error ? e.message : "Unable to record attendance."); } finally { setLoading(false); } }
-  return <View style={styles.overlay}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} /><View style={styles.sheet}><View style={styles.sheetHandle} /><Header eyebrow="PIN ATTENDANCE" title={action === "CHECK_IN" ? "Check in" : "Check out"} subtitle="We’ll verify your PIN and record the current place." /><View style={styles.locationBox}><Ionicons name="location-outline" size={22} color={colors.forest} /><View style={{ flex: 1 }}><Text style={styles.locationTitle}>{location}</Text><Text style={styles.fine}>{coords.accuracy ? `Accuracy ±${Math.round(coords.accuracy)} m` : "Capture your foreground location"}</Text></View><Pressable onPress={findLocation}><Text style={styles.link}>{locating ? "Locating…" : "Refresh"}</Text></Pressable></View><Field label="Attendance PIN" value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry placeholder="••••••" />{error ? <Text style={styles.error}>{error}</Text> : null}<Button label={action === "CHECK_IN" ? "Confirm check in" : "Confirm check out"} loading={loading} onPress={submit} /><Button label="Cancel" variant="secondary" onPress={onClose} /></View></View>;
+  const { tokens } = useAuth();
+  const [pin, setPin] = useState("");
+  const [location, setLocation] = useState("Location not captured");
+  const [coords, setCoords] = useState<{ latitude?: number; longitude?: number; accuracy?: number }>({});
+  const [locating, setLocating] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function findLocation() {
+    setLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) throw new Error("Location permission was not granted. You can still use PIN if policy allows.");
+      const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setCoords({ latitude: point.coords.latitude, longitude: point.coords.longitude, accuracy: point.coords.accuracy ?? undefined });
+      setLocation(isDemo ? "Poblacion,Makati,Philippines" : await api.reverseLocation(point.coords.latitude, point.coords.longitude));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Location is unavailable.");
+    } finally {
+      setLocating(false);
+    }
+  }
+
+  async function submit() {
+    if (!tokens) return;
+    setError("");
+    setLoading(true);
+    try {
+      await api.recordAttendance(undefined, { action, pin, locationLabel: location, ...coords });
+      await onRecorded();
+      Alert.alert("Attendance recorded", action === "CHECK_IN" ? "You are checked in." : "You are checked out.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to record attendance.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return <View style={styles.overlay}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} /><View style={styles.sheet}><View style={styles.sheetHandle} /><Header eyebrow="PIN ATTENDANCE" title={action === "CHECK_IN" ? "Check in" : "Check out"} subtitle="We will verify your PIN and record the current place." /><View style={styles.locationBox}><Ionicons name="location-outline" size={22} color={colors.forest} /><View style={{ flex: 1 }}><Text style={styles.locationTitle}>{location}</Text><Text style={styles.fine}>{coords.accuracy ? `Accuracy +/- ${Math.round(coords.accuracy)} m` : "Capture your foreground location"}</Text></View><Pressable onPress={findLocation}><Text style={styles.link}>{locating ? "Locating..." : "Refresh"}</Text></Pressable></View><Field label="Attendance PIN" value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry placeholder="PIN" />{error ? <Text style={styles.error}>{error}</Text> : null}<Button label={action === "CHECK_IN" ? "Confirm check in" : "Confirm check out"} loading={loading} onPress={submit} /><Button label="Cancel" variant="secondary" onPress={onClose} /></View></View>;
 }
 
-function History({ records, reload }: { records: AttendanceRecord[]; reload(): Promise<void> }) { return <Page refresh={reload}><Header eyebrow="ATTENDANCE HISTORY" title="Your records" subtitle="Verified events from the attendance system." />{records.length ? records.map((item) => <RecordRow key={item.id} item={item} />) : <Empty icon="calendar-outline" title="No attendance yet" text="Your verified records will appear here." />}</Page>; }
+function History({ records, reload }: { records: AttendanceRecord[]; reload(): Promise<void> }) {
+  return <Page refresh={reload}><Header eyebrow="ATTENDANCE HISTORY" title="Your records" subtitle="Verified events from the attendance system." />{records.length ? records.map((item) => <RecordRow key={item.id} item={item} />) : <Empty icon="calendar-outline" title="No attendance yet" text="Your verified records will appear here." />}</Page>;
+}
 
-function Face({ data }: { data: Dashboard }) { const bio = data.user.biometric; return <Page><Header eyebrow="PRIVACY CENTER" title="Your face, your choice" subtitle="Face attendance is optional. PIN attendance remains available." /><View style={styles.card}><View style={styles.rowBetween}><Ionicons name="scan-outline" size={30} color={colors.forest} /><Tag tone={bio.consentStatus ? "green" : "gray"}>{bio.enrollmentStatus.replaceAll("_", " ")}</Tag></View><Text style={styles.cardTitle}>Face profile</Text><Text style={styles.subtitle}>{bio.consentStatus ? "Your explicit consent is on file." : "Consent has not been granted."}</Text><InfoRow label="Consent" value={bio.consentStatus ? "Recorded" : "Not recorded"} /><InfoRow label="Expiry" value={bio.expiresAt ? new Date(bio.expiresAt).toLocaleDateString() : "Not set"} /></View><View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={22} color={colors.forest} /><Text style={styles.noticeText}>Your captured face is sent for verification and should not be retained as an attendance photo.</Text></View><Button label="Face enrollment coming next" disabled /></Page>; }
+function Face({ data }: { data: Dashboard }) {
+  const bio = data.user.biometric;
+  return <Page><Header eyebrow="PRIVACY CENTER" title="Your face, your choice" subtitle="Face attendance is optional. PIN attendance remains available." /><View style={styles.card}><View style={styles.rowBetween}><Ionicons name="scan-outline" size={30} color={colors.forest} /><Tag tone={bio.consentStatus ? "green" : "gray"}>{bio.enrollmentStatus.replaceAll("_", " ")}</Tag></View><Text style={styles.cardTitle}>Face profile</Text><Text style={styles.subtitle}>{bio.consentStatus ? "Your explicit consent is on file." : "Consent has not been granted."}</Text><InfoRow label="Consent" value={bio.consentStatus ? "Recorded" : "Not recorded"} /><InfoRow label="Expiry" value={bio.expiresAt ? new Date(bio.expiresAt).toLocaleDateString() : "Not set"} /></View><View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={22} color={colors.forest} /><Text style={styles.noticeText}>Your captured face is sent for verification. PIN attendance remains available.</Text></View><Button label="Face enrollment coming next" disabled /></Page>;
+}
 
-function Profile({ data, reload }: { data: Dashboard; reload(): Promise<void> }) { const { signOut, tokens } = useAuth(); const user = data.user; const [email, setEmail] = useState(user.personalEmail ?? ""); const [mobile, setMobile] = useState(user.mobile ?? ""); const [saving, setSaving] = useState(false); async function save() { if (!tokens) return; setSaving(true); try { await api.updateProfile(tokens.accessToken, { personalEmail: email, mobile }); await reload(); Alert.alert("Profile updated", "Your contact details were saved."); } catch (e) { Alert.alert("Unable to save", e instanceof Error ? e.message : "Try again."); } finally { setSaving(false); } } return <Page><Header eyebrow="MY PROFILE" title={`${user.firstName} ${user.lastName}`} subtitle={`${user.employeeId} · ${user.jobTitle}`} /><View style={styles.card}><InfoRow label="Work email" value={user.email} /><InfoRow label="Department" value={user.department} /><InfoRow label="Assigned site" value={user.location} /></View><Field label="Personal email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" /><Field label="Mobile number" value={mobile} onChangeText={setMobile} keyboardType="phone-pad" /><Button label="Save changes" loading={saving} onPress={save} /><Button label="Sign out" variant="danger" onPress={() => Alert.alert("Sign out?", "You’ll need your password to return.", [{ text: "Cancel", style: "cancel" }, { text: "Sign out", style: "destructive", onPress: signOut }])} /></Page>; }
+function Profile({ data, reload }: { data: Dashboard; reload(): Promise<void> }) {
+  const { signOut, tokens } = useAuth();
+  const user = data.user;
+  const [email, setEmail] = useState(user.personalEmail ?? "");
+  const [mobile, setMobile] = useState(user.mobile ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!tokens) return;
+    setSaving(true);
+    try {
+      await api.updateProfile(undefined, { personalEmail: email, mobile });
+      await reload();
+      Alert.alert("Profile updated", "Your contact details were saved.");
+    } catch (e) {
+      Alert.alert("Unable to save", e instanceof Error ? e.message : "Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <Page><Header eyebrow="MY PROFILE" title={`${user.firstName} ${user.lastName}`} subtitle={`${user.employeeId} - ${user.jobTitle ?? "Employee"}`} /><View style={styles.card}><InfoRow label="Work email" value={user.email} /><InfoRow label="Department" value={user.department} /><InfoRow label="Assigned site" value={user.location} /></View><Field label="Personal email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" /><Field label="Mobile number" value={mobile} onChangeText={setMobile} keyboardType="phone-pad" /><Button label="Save changes" loading={saving} onPress={save} /><Button label="Sign out" variant="danger" onPress={() => Alert.alert("Sign out?", "You will need your password to return.", [{ text: "Cancel", style: "cancel" }, { text: "Sign out", style: "destructive", onPress: signOut }])} /></Page>;
+}
 
 function Metric({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; value: string; label: string }) { return <View style={styles.metric}><Ionicons name={icon} size={22} color={colors.forest} /><Text style={styles.metricValue}>{value}</Text><Text style={styles.fine}>{label}</Text></View>; }
 function SectionTitle({ title, action, onPress }: { title: string; action: string; onPress(): void }) { return <View style={styles.rowBetween}><Text style={styles.sectionTitle}>{title}</Text><Pressable onPress={onPress}><Text style={styles.link}>{action}</Text></Pressable></View>; }
-function RecordRow({ item }: { item: AttendanceRecord }) { const checkIn = item.attendanceType === "CHECK_IN"; return <View style={styles.record}><View style={[styles.recordIcon, !checkIn && { backgroundColor: "#F1EFE7" }]}><Ionicons name={checkIn ? "log-in-outline" : "log-out-outline"} size={21} color={colors.forest} /></View><View style={{ flex: 1 }}><Text style={styles.recordTitle}>{checkIn ? "Check in" : "Check out"}</Text><Text numberOfLines={1} style={styles.fine}>{item.captureLocationLabel}</Text></View><View style={{ alignItems: "flex-end" }}><Text style={styles.recordTime}>{new Date(item.eventTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text><Text style={styles.fine}>{new Date(item.eventTime).toLocaleDateString([], { month: "short", day: "numeric" })}</Text></View></View>; }
+function RecordRow({ item }: { item: AttendanceRecord }) { const checkIn = item.attendanceType === "CHECK_IN"; return <View style={styles.record}><View style={[styles.recordIcon, !checkIn && { backgroundColor: "#F1EFE7" }]}><Ionicons name={checkIn ? "log-in-outline" : "log-out-outline"} size={21} color={colors.forest} /></View><View style={{ flex: 1 }}><Text style={styles.recordTitle}>{checkIn ? "Check in" : "Check out"}</Text><Text numberOfLines={1} style={styles.fine}>{item.captureLocationLabel ?? "Location not captured"}</Text></View><View style={{ alignItems: "flex-end" }}><Text style={styles.recordTime}>{new Date(item.eventTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text><Text style={styles.fine}>{new Date(item.eventTime).toLocaleDateString([], { month: "short", day: "numeric" })}</Text></View></View>; }
 function InfoRow({ label, value }: { label: string; value: string }) { return <View style={styles.infoRow}><Text style={styles.fine}>{label}</Text><Text style={styles.infoValue}>{value}</Text></View>; }
 function Empty({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; title: string; text: string }) { return <View style={styles.empty}><Ionicons name={icon} size={38} color={colors.muted} /><Text style={styles.cardTitle}>{title}</Text><Text style={styles.subtitle}>{text}</Text></View>; }
 function TabBar({ value, onChange }: { value: Tab; onChange(tab: Tab): void }) { const tabs: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [{ key: "home", label: "Home", icon: "home-outline" }, { key: "history", label: "History", icon: "calendar-outline" }, { key: "face", label: "Face", icon: "scan-outline" }, { key: "profile", label: "Profile", icon: "person-outline" }]; return <View style={styles.tabBar}>{tabs.map((tab) => <Pressable key={tab.key} onPress={() => onChange(tab.key)} style={styles.tab}><Ionicons name={tab.icon} size={23} color={value === tab.key ? colors.forest : "#8B9590"} /><Text style={[styles.tabText, value === tab.key && { color: colors.forest, fontWeight: "800" }]}>{tab.label}</Text></Pressable>)}</View>; }

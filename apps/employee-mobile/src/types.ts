@@ -7,21 +7,22 @@ export type Employee = {
   firstName: string;
   lastName: string;
   email: string;
-  personalEmail?: string;
-  mobile?: string;
-  jobTitle: string;
+  personalEmail?: string | null;
+  mobile?: string | null;
+  profilePhotoUrl?: string | null;
+  jobTitle?: string | null;
   department: string;
   shift: { name: string; startTime: string; endTime: string };
   location: string;
-  preferredAttendanceMethod: AttendanceMethod;
-  biometric: { consentStatus: boolean; enrollmentStatus: string; expiresAt?: string };
+  preferredAttendanceMethod: AttendanceMethod | "ADMIN_ASSISTED";
+  biometric: { consentStatus: boolean; enrollmentStatus: string; expiresAt?: string | null };
 };
 
 export type AttendanceRecord = {
   id: string;
   attendanceType: AttendanceAction;
   eventTime: string;
-  captureLocationLabel: string;
+  captureLocationLabel?: string | null;
   verificationMethod: AttendanceMethod;
   verificationStatus: "SUCCESS" | "FAILED" | "PENDING_REVIEW";
 };
@@ -34,5 +35,4 @@ export type Dashboard = {
   recentRecords: AttendanceRecord[];
 };
 
-export type Tokens = { accessToken: string; refreshToken: string };
-
+export type SessionMarker = { signedIn: true };

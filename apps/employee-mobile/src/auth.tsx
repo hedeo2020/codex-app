@@ -1,13 +1,13 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import { api } from "./api";
-import type { Tokens } from "./types";
+import type { SessionMarker } from "./types";
 
-const TOKEN_KEY = "clockwise.tokens";
+const SESSION_KEY = "clockwise.session";
 
 type AuthValue = {
   ready: boolean;
-  tokens: Tokens | null;
+  tokens: SessionMarker | null;
   signIn(identity: string, password: string): Promise<void>;
   signOut(): Promise<void>;
 };
@@ -16,12 +16,12 @@ const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
-  const [tokens, setTokens] = useState<Tokens | null>(null);
+  const [tokens, setTokens] = useState<SessionMarker | null>(null);
 
   useEffect(() => {
-    SecureStore.getItemAsync(TOKEN_KEY)
+    SecureStore.getItemAsync(SESSION_KEY)
       .then((value) => value && setTokens(JSON.parse(value)))
-      .catch(() => SecureStore.deleteItemAsync(TOKEN_KEY))
+      .catch(() => SecureStore.deleteItemAsync(SESSION_KEY))
       .finally(() => setReady(true));
   }, []);
 
@@ -29,13 +29,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     ready,
     tokens,
     async signIn(identity, password) {
-      const next = await api.login(identity, password);
-      await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(next), { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+      const next: SessionMarker = await api.login(identity, password);
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next), { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
       setTokens(next);
     },
     async signOut() {
-      if (tokens) await api.logout(tokens.accessToken).catch(() => undefined);
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      if (tokens) await api.logout().catch(() => undefined);
+      await SecureStore.deleteItemAsync(SESSION_KEY);
       setTokens(null);
     },
   }), [ready, tokens]);
@@ -48,4 +48,3 @@ export function useAuth() {
   if (!value) throw new Error("useAuth must be used inside AuthProvider");
   return value;
 }
-
