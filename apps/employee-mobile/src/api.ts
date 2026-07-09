@@ -1,28 +1,21 @@
 import type { AttendanceAction, AttendanceRecord, Dashboard, Employee, SessionMarker } from "./types";
 
-const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "");
-export const isDemo = !baseUrl;
+const envBaseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+let runtimeBaseUrl = envBaseUrl;
 
-const demoEmployee: Employee = {
-  id: "demo-employee",
-  employeeId: "EMP-0021",
-  firstName: "Maya",
-  lastName: "Santos",
-  email: "maya.santos@clockwise.demo",
-  personalEmail: "maya@example.com",
-  mobile: "+63 917 555 0142",
-  jobTitle: "Operations Associate",
-  department: "Operations",
-  shift: { name: "Morning shift", startTime: "08:00", endTime: "17:00" },
-  location: "Makati Office",
-  preferredAttendanceMethod: "FACE",
-  biometric: { consentStatus: true, enrollmentStatus: "ACTIVE", expiresAt: "2027-05-30T00:00:00Z" },
-};
+export function configureServerUrl(url?: string | null) {
+  const raw = url?.trim() || envBaseUrl;
+  const normalized = raw && !/^https?:\/\//i.test(raw) ? `https://${raw}` : raw;
+  runtimeBaseUrl = normalized.replace(/\/$/, "");
+}
 
-let demoRecords: AttendanceRecord[] = [
-  { id: "3", attendanceType: "CHECK_OUT", eventTime: new Date(Date.now() - 86400000 + 9 * 3600000).toISOString(), captureLocationLabel: "Poblacion,Makati,Philippines", verificationMethod: "FACE", verificationStatus: "SUCCESS" },
-  { id: "2", attendanceType: "CHECK_IN", eventTime: new Date(Date.now() - 86400000).toISOString(), captureLocationLabel: "Poblacion,Makati,Philippines", verificationMethod: "FACE", verificationStatus: "SUCCESS" },
-];
+export function getServerUrl() {
+  return runtimeBaseUrl;
+}
+
+export function hasServerUrl() {
+  return Boolean(runtimeBaseUrl);
+}
 
 type WebsiteUser = {
   id: string;
@@ -41,7 +34,8 @@ type WebsiteUser = {
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  if (!runtimeBaseUrl) throw new Error("Enter your Clockwise website URL before signing in.");
+  const response = await fetch(`${runtimeBaseUrl}${path}`, {
     ...options,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options.headers },
@@ -84,26 +78,21 @@ function buildDashboard(user: Employee, records: AttendanceRecord[]): Dashboard 
   return { user, todayStatus: todayRecords.length === 0 ? "NOT_STARTED" : working ? "WORKING" : "COMPLETED", allowedActions: [working ? "CHECK_OUT" : "CHECK_IN"], weeklyCheckIns, recentRecords: records };
 }
 
-function dashboard(): Dashboard {
-  return buildDashboard(demoEmployee, demoRecords);
-}
-
 export const api = {
   async login(identity: string, password: string): Promise<SessionMarker> {
-    if (isDemo) {
+    if (!hasServerUrl()) {
       await delay(450);
-      if (!identity.trim() || password.length < 8) throw new Error("Enter your employee ID and an eight-character password.");
-      return { signedIn: true };
+      throw new Error("Enter your Clockwise website URL before signing in.");
     }
     await request("/api/auth/login", { method: "POST", body: JSON.stringify({ identity, password }) });
     return { signedIn: true };
   },
   async logout() {
-    if (isDemo) return delay(200);
+    if (!hasServerUrl()) return delay(200);
     await request("/api/auth/logout", { method: "POST" });
   },
   async dashboard(_session?: string): Promise<Dashboard> {
-    if (isDemo) return delay(300).then(dashboard);
+    if (!hasServerUrl()) throw new Error("Enter your Clockwise website URL before signing in.");
     const [{ user }, { records }] = await Promise.all([
       request<{ user: WebsiteUser }>("/api/employees/me"),
       request<{ records: AttendanceRecord[] }>("/api/employees/me/attendance"),
@@ -111,27 +100,24 @@ export const api = {
     return buildDashboard(toEmployee(user), records);
   },
   async history(_session?: string): Promise<AttendanceRecord[]> {
-    if (isDemo) return delay(300).then(() => demoRecords);
+    if (!hasServerUrl()) throw new Error("Enter your Clockwise website URL before signing in.");
     const result = await request<{ records: AttendanceRecord[] }>("/api/employees/me/attendance");
     return result.records;
   },
   async recordAttendance(_session: string | undefined, input: { action: AttendanceAction; pin: string; latitude?: number; longitude?: number; accuracy?: number; locationLabel: string }): Promise<AttendanceRecord> {
-    if (isDemo) {
+    if (!hasServerUrl()) {
       await delay(650);
-      if (input.pin.length < 4) throw new Error("Enter your attendance PIN.");
-      const record: AttendanceRecord = { id: String(Date.now()), attendanceType: input.action, eventTime: new Date().toISOString(), captureLocationLabel: input.locationLabel, verificationMethod: "PIN", verificationStatus: "SUCCESS" };
-      demoRecords = [record, ...demoRecords];
-      return record;
+      throw new Error("Enter your Clockwise website URL before recording attendance.");
     }
     const result = await request<{ record: AttendanceRecord }>("/api/employees/me/attendance", { method: "POST", body: JSON.stringify({ type: input.action, method: "PIN", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, pin: input.pin, captureLocationLabel: input.locationLabel, latitude: input.latitude, longitude: input.longitude }) });
     return result.record;
   },
   async updateProfile(_session: string | undefined, input: { personalEmail: string; mobile: string }) {
-    if (isDemo) { Object.assign(demoEmployee, input); return delay(350); }
+    if (!hasServerUrl()) throw new Error("Enter your Clockwise website URL before updating your profile.");
     await request("/api/employees/me", { method: "PATCH", body: JSON.stringify(input) });
   },
   async reverseLocation(latitude: number, longitude: number): Promise<string> {
-    if (isDemo) return "Current area";
+    if (!hasServerUrl()) return "Current area";
     const result = await request<{ locationLabel: string }>(`/api/location/reverse?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}`);
     return result.locationLabel;
   },

@@ -10,9 +10,9 @@ pnpm install
 pnpm start
 ```
 
-Without an API URL, the app runs in demo mode. Use any non-empty employee ID and a password of at least eight characters.
+On first launch, enter your deployed Clockwise website URL on the login screen, then sign in with a real employee ID or email and password. The app saves that URL on the device for later launches.
 
-To connect your deployed Clockwise website backend:
+You can also bake the website URL into the app while developing:
 
 ```bash
 EXPO_PUBLIC_API_URL=https://attendance.example.com pnpm start

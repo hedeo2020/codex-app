@@ -3,7 +3,7 @@ import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
-import { api, isDemo } from "./src/api";
+import { api } from "./src/api";
 import { AuthProvider, useAuth } from "./src/auth";
 import { Button, Field, LoadingScreen, Tag } from "./src/components";
 import { colors } from "./src/theme";
@@ -22,7 +22,8 @@ function Root() {
 }
 
 function Login() {
-  const { signIn } = useAuth();
+  const { signIn, serverUrl: savedServerUrl } = useAuth();
+  const [serverUrl, setServerUrl] = useState(savedServerUrl);
   const [identity, setIdentity] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ function Login() {
     setError("");
     setLoading(true);
     try {
-      await signIn(identity, password);
+      await signIn(identity, password, serverUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to sign in.");
     } finally {
@@ -43,8 +44,8 @@ function Login() {
   return <SafeAreaView style={styles.loginPage}><KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.loginBody}>
     <View style={styles.brandMark}><Ionicons name="checkmark" size={28} color={colors.forestDark} /></View>
     <View><Text style={styles.eyebrow}>CLOCKWISE EMPLOYEE</Text><Text style={styles.loginTitle}>Attendance, without the fuss.</Text><Text style={styles.subtitle}>Sign in to record your day and review your attendance.</Text></View>
-    {isDemo ? <View style={styles.demo}><Ionicons name="flask-outline" size={18} color={colors.forest} /><Text style={styles.demoText}>Demo mode - use any employee ID and 8+ character password</Text></View> : null}
-    <View style={{ gap: 15 }}><Field label="Employee ID or email" value={identity} onChangeText={setIdentity} autoCapitalize="none" placeholder="EMP-0021" /><Field label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Your password" onSubmitEditing={submit} />{error ? <Text style={styles.error}>{error}</Text> : null}<Button label="Sign in securely" loading={loading} onPress={submit} /></View>
+    {!serverUrl.trim() ? <View style={styles.demo}><Ionicons name="cloud-outline" size={18} color={colors.forest} /><Text style={styles.demoText}>Enter your deployed Clockwise website URL to use real employee accounts.</Text></View> : null}
+    <View style={{ gap: 15 }}><Field label="Website URL" value={serverUrl} onChangeText={setServerUrl} autoCapitalize="none" keyboardType="url" placeholder="https://your-clockwise-site.com" /><Field label="Employee ID or email" value={identity} onChangeText={setIdentity} autoCapitalize="none" placeholder="EMP-0021" /><Field label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Your password" onSubmitEditing={submit} />{error ? <Text style={styles.error}>{error}</Text> : null}<Button label="Sign in online" loading={loading} onPress={submit} /></View>
     <Text style={styles.fine}>Your website session is kept by the device. Sign out when using a shared phone.</Text>
   </KeyboardAvoidingView></SafeAreaView>;
 }
@@ -116,7 +117,7 @@ function AttendanceSheet({ action, onClose, onRecorded }: { action: AttendanceAc
       if (!permission.granted) throw new Error("Location permission was not granted. You can still use PIN if policy allows.");
       const point = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       setCoords({ latitude: point.coords.latitude, longitude: point.coords.longitude, accuracy: point.coords.accuracy ?? undefined });
-      setLocation(isDemo ? "Poblacion,Makati,Philippines" : await api.reverseLocation(point.coords.latitude, point.coords.longitude));
+      setLocation(await api.reverseLocation(point.coords.latitude, point.coords.longitude));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Location is unavailable.");
     } finally {
