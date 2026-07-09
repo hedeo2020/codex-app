@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Clockwise Employee",
+    "slug": "clockwise-employee",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "clockwise",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.clockwise.employee",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": [
+      "expo-secure-store",
+      ["expo-location", { "locationWhenInUsePermission": "Clockwise uses your location only while recording attendance." }]
+    ]
+  }
+}

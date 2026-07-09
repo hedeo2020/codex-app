@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["react"]
+  },
+  "include": ["App.tsx", "apps/employee-mobile/App.tsx", "apps/employee-mobile/src/**/*.ts", "apps/employee-mobile/src/**/*.tsx", "expo-env.d.ts"]
+}

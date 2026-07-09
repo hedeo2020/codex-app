@@ -5,10 +5,11 @@ Android-first employee attendance app built with React Native and Expo.
 ## Run locally
 
 ```bash
-cd apps/employee-mobile
 pnpm install
 pnpm start
 ```
+
+The repository root is now a valid Expo app entrypoint for AI Studio and GitHub-based builders. The app source still lives in `apps/employee-mobile`.
 
 On first launch, enter your deployed Clockwise website URL on the login screen, then sign in with a real employee ID or email and password. The app saves that URL on the device for later launches.
 
