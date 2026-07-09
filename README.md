@@ -11,7 +11,7 @@ pnpm start
 
 The repository root is now a valid Expo app entrypoint for AI Studio and GitHub-based builders. The app source still lives in `apps/employee-mobile`.
 
-On first launch, enter your deployed Clockwise website URL on the login screen, then sign in with a real employee ID or email and password. The app saves that URL on the device for later launches.
+The app defaults to `https://register.3dbpoint.com`. On first launch, you can keep that URL or edit it on the login screen, then sign in with a real employee ID or email and password. The app saves that URL on the device for later launches.
 
 You can also bake the website URL into the app while developing:
 

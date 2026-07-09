@@ -1,6 +1,7 @@
 import type { AttendanceAction, AttendanceRecord, Dashboard, Employee, SessionMarker } from "./types";
 
-const envBaseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+const defaultBaseUrl = "https://register.3dbpoint.com";
+const envBaseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? defaultBaseUrl;
 let runtimeBaseUrl = envBaseUrl;
 
 export function configureServerUrl(url?: string | null) {
@@ -40,9 +41,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options.headers },
   });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body?.error?.message ?? body?.error ?? "Something went wrong. Please try again.");
+  const text = await response.text();
+  const body = text ? parseJson(text) : {};
+  if (!response.ok) {
+    throw new Error(body?.error?.message ?? body?.error ?? `Server returned ${response.status}. Please check the website URL.`);
+  }
+  if (!text) {
+    throw new Error(`Empty response from ${runtimeBaseUrl}${path}. Please check that this URL points to the Clockwise backend.`);
+  }
   return body.data ?? body;
+}
+
+function parseJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: "The server returned a non-JSON response. Please check that the website URL is correct." };
+  }
 }
 
 function toEmployee(user: WebsiteUser): Employee {
@@ -84,6 +99,7 @@ export const api = {
       await delay(450);
       throw new Error("Enter your Clockwise website URL before signing in.");
     }
+    await request<{ ok: boolean }>("/api/health");
     await request("/api/auth/login", { method: "POST", body: JSON.stringify({ identity, password }) });
     return { signedIn: true };
   },
